@@ -1,69 +1,83 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+
+const RATES_HOME = [
+  { max: 150, rate: 3.2484 },
+  { max: 400, rate: 4.2218 },
+  { max: Infinity, rate: 4.4217 },
+];
+
+const FT_RATE = 0.3972;
+
+function calcElectric(units: number) {
+  let remaining = units;
+  let prev = 0;
+  let base = 0;
+  const rows: { range: string; units: number; rate: number; cost: number }[] = [];
+
+  for (const b of RATES_HOME) {
+    if (remaining <= 0) break;
+    const u = Math.min(remaining, b.max - prev);
+    const cost = u * b.rate;
+    base += cost;
+    rows.push({
+      range: `${prev + 1} - ${b.max === Infinity ? "∞" : b.max}`,
+      units: u,
+      rate: b.rate,
+      cost,
+    });
+    remaining -= u;
+    prev = b.max;
+  }
+
+  const ft = units * FT_RATE;
+  const beforeVat = base + ft;
+  const vat = beforeVat * 0.07;
+  const total = beforeVat + vat;
+
+  return { rows, base, ft, beforeVat, vat, total };
+}
+
+export default function Page() {
+  const [units, setUnits] = useState("");
+  const [type, setType] = useState("home");
+  const [result, setResult] = useState<ReturnType<typeof calcElectric> | null>(null);
+
+  function calculate() {
+    const u = Number(units);
+    if (u <= 0) return alert("กรุณากรอกหน่วยไฟฟ้า");
+    setResult(calcElectric(u));
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="p-8 max-w-lg mx-auto">
+      <h1 className="text-2xl font-bold mb-4">คำนวณค่าไฟฟ้า</h1>
+      <div className="space-y-3">
+        <input className="border p-2 w-full" type="number" placeholder="หน่วยไฟฟ้า (kWh)" value={units} onChange={(e) => setUnits(e.target.value)} />
+        <select className="border p-2 w-full" value={type} onChange={(e) => setType(e.target.value)}>
+          <option value="home">บ้านอยู่อาศัย</option>
+          <option value="business">กิจการขนาดเล็ก</option>
+        </select>
+        <button className="bg-blue-500 text-white px-4 py-2 w-full" onClick={calculate}>คำนวณ</button>
+      </div>
+      {result && (
+        <div className="mt-6 space-y-2">
+          <table className="w-full border text-sm">
+            <thead><tr className="bg-gray-100"><th className="border p-1">ช่วง</th><th className="border p-1">หน่วย</th><th className="border p-1">อัตรา</th><th className="border p-1">ค่าไฟ</th></tr></thead>
+            <tbody>
+              {result.rows.map((r, i) => (
+                <tr key={i}><td className="border p-1">{r.range}</td><td className="border p-1">{r.units.toFixed(0)}</td><td className="border p-1">{r.rate}</td><td className="border p-1">{r.cost.toFixed(2)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p>ค่าไฟฐาน: {result.base.toFixed(2)} บาท</p>
+          <p>ค่า Ft: {result.ft.toFixed(2)} บาท</p>
+          <p>ก่อน VAT: {result.beforeVat.toFixed(2)} บาท</p>
+          <p>VAT 7%: {result.vat.toFixed(2)} บาท</p>
+          <p className="text-2xl font-bold text-red-600">ยอดรวม: {result.total.toFixed(2)} บาท</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      )}
     </div>
   );
 }
